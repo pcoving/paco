@@ -12,12 +12,15 @@ public:
   
   void initialHook() {
     
-        
-    FOR_IP {
-      mp[ip] = 0.0;
-      FOR_I2 gp[ip][i] = 0.0;    
+    for (int i = 0; i < ncells; ++i) {
+      for (int j = 0; j < ncells; ++j) {
+	for (typename list<Point>::iterator il = cells[i + ncells*j].begin(); il != cells[i + ncells*j].end(); ++il) {
+	  il->tmp = 0.0;
+	  FOR_I2 il->tmp2[i] = 0.0;
+	}
+      }
     }
-
+    
     FOR_IT {
       triVec[it].updateVeX(xp);
       triVec[it].calcArea();
@@ -54,15 +57,15 @@ public:
 	const double lambda[2] = {triVec[it].lambda[iq][0],triVec[it].lambda[iq][1]};
 	const double weight = quad.p_wgt[iq]*triVec[it].area/triVec[it].denom[iq];
 	
-	//#pragma omp parallel for 
+        #pragma omp parallel for collapse(2) 
 	for (int ivar = -1; ivar <= 1; ++ivar) {
 	  for (int jvar = -1; jvar <= 1; ++jvar) {
 	    const int this_icell = icell + ivar;
 	    const int this_jcell = jcell + jvar;
 	    for (typename list<Point>::iterator il = cells[this_icell + ncells*this_jcell].begin(); il != cells[this_icell + ncells*this_jcell].end(); ++il) {
 	      const double val = evalExp(xquad, il->x, lambda);
-	      mp[il->ip] += this_rho*weight*val;
-	      FOR_I2 up[il->ip][i] += this_u[i]*weight*val;
+	      il->tmp += this_rho*weight*val;
+	      FOR_I2 il->tmp2[i] += this_u[i]*weight*val;
 	    }
 	  }
 	}
@@ -70,6 +73,22 @@ public:
       }
     }
     
+    
+    FOR_IP {
+      mp[ip] = 0.0;
+      FOR_I2 gp[ip][i] = 0.0;    
+    }
+
+    for (int i = 0; i < ncells; ++i) {
+      for (int j = 0; j < ncells; ++j) {
+        for (typename list<Point>::iterator il = cells[i + ncells*j].begin(); il != cells[i + ncells*j].end(); ++il) {
+          mp[il->ip] += il->tmp;
+	  FOR_I2 gp[il->ip][i] += il->tmp2[i];
+	}
+      }
+    }
+
+
   }
   
   void temporalHook() {

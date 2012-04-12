@@ -1210,7 +1210,6 @@ public:
 
   void calcRhs(double (*rhs_gp)[2]) {
     
-    // here
     
   }
   
